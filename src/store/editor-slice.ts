@@ -7,7 +7,6 @@ import {
   newTileMapLayer,
   newTileSet,
 } from "./map-slice";
-import { getImageDimensions } from "../utils/file";
 
 export type MapDimensions = {
   mapWidth: number;
@@ -34,10 +33,14 @@ export type NewTileSetData = {
   imageHeight: number;
 };
 
+export type TileSetWithHash = TileSet & { hash: string };
 export interface EditorSlice {
   scale: number;
   currentLayerId: number;
   tilesetImages: FileWithData[];
+  computed: {
+    tileSets: TileSetWithHash[];
+  };
   setScale: (scale: number) => void;
   setMapWidth: (mapWidth: number) => void;
   setMapHeight: (mapHeight: number) => void;
@@ -45,6 +48,7 @@ export interface EditorSlice {
   setTileHeight: (tileHeight: number) => void;
   addLayer: (layer?: Partial<TileMapLayer>) => void;
   addTileSet: (newTileSetData: NewTileSetData) => void;
+  updateTileSet: (hash: string, newTileSetData: Partial<TileSet>) => void;
   deleteTileSet: (tileSet: TileSet) => void;
 }
 
@@ -57,6 +61,19 @@ export const createEditorSlice: StateCreator<
   scale: 1,
   currentLayerId: 1,
   tilesetImages: [],
+  computed: {
+    // Tilesets aren't very unique, so we need to add a hash to them to make them unique for rendering etc
+    get tileSets() {
+      return (get()?.map?.tilesets || []).map((tileSet, index) => {
+        const hash = JSON.stringify({ ...tileSet, index });
+        return {
+          ...tileSet,
+          hash,
+        };
+      });
+    },
+  },
+
   setScale: (scale) =>
     set(
       produce((state) => {
@@ -129,6 +146,20 @@ export const createEditorSlice: StateCreator<
         );
 
         state.tilesetImages.push(file);
+      })
+    ),
+  updateTileSet: (hash, newTileSetData) =>
+    set(
+      produce((state) => {
+        state.map.tilesets = state.map.tilesets.map(
+          (ts: TileSet, index: number) => {
+            const tsHash = JSON.stringify({ ...ts, index });
+            if (tsHash === hash) {
+              return { ...ts, ...newTileSetData };
+            }
+            return ts;
+          }
+        );
       })
     ),
   deleteTileSet: (tileSet: TileSet) =>

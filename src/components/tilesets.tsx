@@ -23,15 +23,25 @@ import {
   Tooltip,
 } from "@chakra-ui/react";
 import { ChangeEventHandler, FormEventHandler, useState } from "react";
-import { useStore } from "../store/store";
-import { AiFillSetting, AiFillDelete, AiOutlinePlus } from "react-icons/ai";
-import { FileWithData } from "../store/editor-slice";
+import {
+  initialMapHeight,
+  initialTileHeight,
+  initialTileWidth,
+  useStore,
+} from "../store/store";
+import {
+  AiFillSetting,
+  AiFillDelete,
+  AiOutlinePlus,
+  AiOutlineSave,
+} from "react-icons/ai";
+import { FileWithData, TileSetWithHash } from "../store/editor-slice";
 import { parseNumber } from "../utils/number";
 import { getImageDimensions, readFile } from "../utils/file";
 import { TileSet } from "../store/map-slice";
 import { lookupImageByTileSet } from "../utils/tileset";
 
-function TileSet({ data }: { data: TileSet }) {
+function TileSet({ data }: { data: TileSetWithHash }) {
   return (
     <VStack spacing={1} alignItems="stretch">
       <Text fontSize="sm" fontWeight="medium">
@@ -71,43 +81,49 @@ function TileSetImage({ tileset }: { tileset: TileSet }) {
   );
 }
 
-function TileSetToolbar({ tileset }: { tileset: TileSet }) {
+function TileSetToolbar({ tileset }: { tileset: TileSetWithHash }) {
   const deleteTileSet = useStore((state) => state.deleteTileSet);
 
+  const editTileSet = useDisclosure();
+
   return (
-    <Wrap>
-      <WrapItem ml="auto">
-        <Tooltip label="Edit tileset" aria-label="Edit tileset">
-          <IconButton
-            aria-label="Edit tileset"
-            icon={<AiFillSetting />}
-            variant="outline"
-            size="xs"
-            colorScheme="orange"
-          />
-        </Tooltip>
-      </WrapItem>
-      <WrapItem ml="auto">
-        <Tooltip label="Delete tileset" aria-label="Delete tileset">
-          <IconButton
-            colorScheme={"red"}
-            aria-label="Delete tileset"
-            icon={<AiFillDelete />}
-            variant="outline"
-            size="xs"
-            onClick={() => {
-              console.log("delete", tileset);
-              deleteTileSet(tileset);
-            }}
-          />
-        </Tooltip>
-      </WrapItem>
-    </Wrap>
+    <>
+      <Wrap>
+        <WrapItem ml="auto">
+          <Tooltip label="Edit tileset" aria-label="Edit tileset">
+            <IconButton
+              aria-label="Edit tileset"
+              icon={<AiFillSetting />}
+              variant="outline"
+              size="xs"
+              colorScheme="orange"
+              onClick={() => editTileSet.onOpen()}
+            />
+          </Tooltip>
+        </WrapItem>
+        <WrapItem ml="auto">
+          <Tooltip label="Delete tileset" aria-label="Delete tileset">
+            <IconButton
+              colorScheme={"red"}
+              aria-label="Delete tileset"
+              icon={<AiFillDelete />}
+              variant="outline"
+              size="xs"
+              onClick={() => {
+                console.log("delete", tileset);
+                deleteTileSet(tileset);
+              }}
+            />
+          </Tooltip>
+        </WrapItem>
+      </Wrap>
+      <AddTileSetModal {...editTileSet} tileset={tileset} />
+    </>
   );
 }
 
 export default function Tilesets() {
-  const tilesets = useStore((state) => state.map.tilesets);
+  const tilesets = useStore((state) => state.computed.tileSets);
 
   const addTileSetModal = useDisclosure();
 
@@ -115,7 +131,7 @@ export default function Tilesets() {
     <Box p={2}>
       <VStack alignItems="stretch">
         {tilesets.map((tileset) => (
-          <TileSet data={tileset} key={`${tileset.name}-${tileset.image}`} />
+          <TileSet data={tileset} key={tileset.hash} />
         ))}
       </VStack>
       <Flex justifyContent="flex-end" mt={3}>
@@ -133,8 +149,20 @@ export default function Tilesets() {
   );
 }
 
-function AddTileSetModal({ isOpen, onClose }: UseDisclosureReturn) {
-  const [file, setFile] = useState<FileWithData>();
+function AddTileSetModal({
+  isOpen,
+  onClose,
+  tileset,
+}: UseDisclosureReturn & { tileset?: TileSetWithHash }) {
+  const isEdit = !!tileset;
+
+  const tileSetImages = useStore((state) => state.tilesetImages);
+
+  const tilesetImage = isEdit
+    ? lookupImageByTileSet(tileSetImages, tileset)
+    : undefined;
+
+  const [file, setFile] = useState<FileWithData | undefined>(tilesetImage);
 
   const onFileSelected: ChangeEventHandler<HTMLInputElement> = async (
     event
@@ -150,24 +178,41 @@ function AddTileSetModal({ isOpen, onClose }: UseDisclosureReturn) {
     }
   };
 
-  const [tileWidth, setTileWidth] = useState(32);
-  const [tileHeight, setTileHeight] = useState(32);
+  const [tileWidth, setTileWidth] = useState(
+    tileset?.tilewidth || initialTileWidth
+  );
+  const [tileHeight, setTileHeight] = useState(
+    tileset?.tileheight || initialTileHeight
+  );
 
-  const addTileSet = useStore((state) => state.addTileSet);
+  const [addTileSet, updateTileSet] = useStore((state) => [
+    state.addTileSet,
+    state.updateTileSet,
+  ]);
 
   const handleSubmit: FormEventHandler<HTMLElement> = async (event) => {
     event.preventDefault();
     // TODO validation etc
 
-    const { width, height } = await getImageDimensions(file!.data);
+    if (isEdit) {
+      updateTileSet(tileset.hash, {
+        tilewidth: tileWidth,
+        tileheight: tileHeight,
+      });
+    } else {
+      const { width, height } = await getImageDimensions(file!.data);
+      addTileSet({
+        file: file!,
+        tileWidth,
+        tileHeight,
+        imageWidth: width,
+        imageHeight: height,
+      });
+      setTileWidth(initialTileWidth);
+      setTileHeight(initialTileHeight);
+    }
 
-    addTileSet({
-      file: file!,
-      tileWidth,
-      tileHeight,
-      imageWidth: width,
-      imageHeight: height,
-    });
+    setFile(undefined);
 
     onClose();
   };
@@ -182,37 +227,44 @@ function AddTileSetModal({ isOpen, onClose }: UseDisclosureReturn) {
           <VStack>
             <FormControl>
               <FormLabel>Tileset image</FormLabel>
-              <Input as="div" position="relative">
-                <Flex alignItems="center" height="100%">
-                  <Text
-                    flexGrow="1"
-                    color={!!file ? undefined : "chakra-placeholder-color"}
-                    whiteSpace="nowrap"
-                    overflow="hidden"
-                    textOverflow="ellipsis"
-                    mr="2"
-                  >
-                    {!!file ? file.file.name : "No file selected"}
-                  </Text>
-                  <Button as="span" size="sm" px="2" flexShrink="0">
-                    Choose file
-                  </Button>
-                </Flex>
-                <Box
-                  as="input"
-                  type="file"
-                  accept="image/*"
-                  position="absolute"
-                  opacity="0"
-                  left="0"
-                  right="0"
-                  top="0"
-                  bottom="0"
-                  cursor="pointer"
-                  onChange={onFileSelected}
-                />
-              </Input>
+              {!isEdit && (
+                <Input as="div" position="relative">
+                  <Flex alignItems="center" height="100%">
+                    <Text
+                      flexGrow="1"
+                      color={!!file ? undefined : "chakra-placeholder-color"}
+                      whiteSpace="nowrap"
+                      overflow="hidden"
+                      textOverflow="ellipsis"
+                      mr="2"
+                    >
+                      {!!file ? file.file.name : "No file selected"}
+                    </Text>
+                    <Button as="span" size="sm" px="2" flexShrink="0">
+                      Choose file
+                    </Button>
+                  </Flex>
+                  <Box
+                    as="input"
+                    type="file"
+                    accept="image/*"
+                    position="absolute"
+                    opacity="0"
+                    left="0"
+                    right="0"
+                    top="0"
+                    bottom="0"
+                    cursor="pointer"
+                    onChange={onFileSelected}
+                  />
+                </Input>
+              )}
             </FormControl>
+            {!!file && (
+              <Box maxW="sm">
+                <img src={file.data} />
+              </Box>
+            )}
             <SimpleGrid columns={2} gap={3}>
               <FormControl>
                 <FormLabel>Tile width (px)</FormLabel>
@@ -244,10 +296,10 @@ function AddTileSetModal({ isOpen, onClose }: UseDisclosureReturn) {
           </Button>
           <Button
             colorScheme="purple"
-            leftIcon={<AiOutlinePlus />}
+            leftIcon={isEdit ? <AiOutlineSave /> : <AiOutlinePlus />}
             type="submit"
           >
-            Add tileset
+            {isEdit ? "Update" : "Add"} tileset
           </Button>
         </ModalFooter>
       </ModalContent>
