@@ -1,5 +1,4 @@
-import { FileWithData } from "../store/editor-slice";
-import { TileSet } from "../store/map-slice";
+import { FileWithData, TileSet } from "../types";
 
 export function lookupImageByTileSet(
   images: FileWithData[],
