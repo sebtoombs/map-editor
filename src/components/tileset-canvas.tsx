@@ -171,13 +171,6 @@ export function TileSetCanvas({
       const scale = width / tileset.imagewidth;
 
       if (canvas) {
-        console.log(
-          "set dimensions",
-          width,
-          height,
-          tileset.imagewidth,
-          tileset.imageheight
-        );
         canvas.stage.width(width);
         canvas.stage.height(scale * tileset.imageheight);
         canvas.stage.draw();
