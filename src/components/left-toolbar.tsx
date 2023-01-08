@@ -11,7 +11,7 @@ import { useState } from "react";
 import { useStore } from "../store/store";
 import { getInputMin, parseNumber } from "../utils/number";
 
-export default function LeftToolbar() {
+export function LeftToolbar() {
   const [mapWidth, setMapWidth] = useStore((state) => [
     state.map.width,
     state.setMapWidth,
@@ -53,18 +53,6 @@ export default function LeftToolbar() {
     }
   };
 
-  const handleUpdate = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = event.target;
-
-    const parsedValue = parseNumber(value);
-
-    updateInputValue(name, parsedValue);
-
-    if (validate(event.target, parsedValue)) {
-      submitUpdate(name, parsedValue);
-    }
-  };
-
   const validate = (element: HTMLInputElement, value: any) => {
     const min = getInputMin(element);
 
@@ -87,6 +75,18 @@ export default function LeftToolbar() {
         break;
       default:
         break;
+    }
+  };
+
+  const handleUpdate = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = event.target;
+
+    const parsedValue = parseNumber(value);
+
+    updateInputValue(name, parsedValue);
+
+    if (validate(event.target, parsedValue)) {
+      submitUpdate(name, parsedValue);
     }
   };
 

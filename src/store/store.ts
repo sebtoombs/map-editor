@@ -1,15 +1,8 @@
 import create from "zustand";
+import { StoreState } from "../types";
 
-import { createEditorSlice, EditorSlice } from "./editor-slice";
-import { createMapSlice, MapSlice } from "./map-slice";
-
-export const initialMapWidth = 30;
-export const initialMapHeight = 30;
-export const initialTileWidth = 32;
-export const initialTileHeight = 32;
-export const initialScale = 1;
-
-export type StoreState = EditorSlice & MapSlice;
+import { createEditorSlice } from "./editor-slice";
+import { createMapSlice } from "./map-slice";
 
 const logger = (f, name) => (set, get, store) => {
   type T = ReturnType<typeof f>;

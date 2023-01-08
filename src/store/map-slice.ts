@@ -1,26 +1,11 @@
 import { StateCreator } from "zustand";
-import produce from "immer";
 import {
   initialMapHeight,
   initialMapWidth,
   initialTileHeight,
   initialTileWidth,
-  StoreState,
-} from "./store";
-
-export interface TileMapLayer {
-  id: number;
-  name: string;
-  width: number;
-  height: number;
-  x: number;
-  y: number;
-  type: "tilelayer" | "objectlayer" | "imagelayer" | "group"; // Only tiles supported for now
-  data: number[];
-  opacity: number;
-  visible: boolean;
-  layers?: TileMapLayer[];
-}
+} from "../constants";
+import { MapSlice, StoreState, TileMap, TileMapLayer, TileSet } from "../types";
 
 export function newTileMapLayer(
   tileMapLayerProperties: Partial<TileMapLayer> = {}
@@ -59,20 +44,6 @@ export function newTileMapLayer(
   return newInstance;
 }
 
-export interface TileSet {
-  name: string;
-  image: string;
-  tileheight: number;
-  tilewidth: number;
-  imageheight: number;
-  imagewidth: number;
-  firstgid: number;
-  margin: number;
-  spacing: number;
-  columns: number;
-  tilecount: number;
-}
-
 export function newTileSet(tileSetProperties: Partial<TileSet> = {}): TileSet {
   return {
     name: "New Tile Set",
@@ -93,19 +64,6 @@ export function newTileSet(tileSetProperties: Partial<TileSet> = {}): TileSet {
     },
   };
 }
-
-export type TileMap = {
-  height: number;
-  width: number;
-  tilewidth: number;
-  tileheight: number;
-  orientation: "orthogonal"; // | "isometric" | "staggered" | "hexagonal";
-  renderorder: "right-down"; // | "right-up" | "left-down" | "left-up";
-  layers: TileMapLayer[];
-  tilesets: TileSet[];
-  nextlayerid: number;
-  nextobjectid: number; // Unused so far?
-};
 
 // public findLayerById(
 //     id: number,
@@ -152,12 +110,8 @@ export function newTileMap(): TileMap {
       id: tileMap.nextlayerid,
     })
   );
-  tileMap.nextlayerid++;
+  tileMap.nextlayerid += 1;
   return tileMap;
-}
-
-export interface MapSlice {
-  map: TileMap;
 }
 
 export const createMapSlice: StateCreator<

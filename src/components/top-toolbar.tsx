@@ -2,9 +2,7 @@ import {
   Box,
   Button,
   ButtonGroup,
-  Flex,
   IconButton,
-  Text,
   Tooltip,
   Wrap,
   WrapItem,
@@ -12,7 +10,7 @@ import {
 import { AiOutlineZoomIn, AiOutlineZoomOut } from "react-icons/ai";
 import { useStore } from "../store/store";
 
-export default function TopToolbar() {
+export function TopToolbar() {
   const [scale, setScale] = useStore((state) => [state.scale, state.setScale]);
 
   return (

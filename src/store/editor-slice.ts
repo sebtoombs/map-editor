@@ -1,56 +1,13 @@
 import { StateCreator } from "zustand";
 import produce from "immer";
-import { StoreState } from "./store";
 import {
-  TileMapLayer,
+  EditorSlice,
+  FileWithData,
+  NewTileSetData,
+  StoreState,
   TileSet,
-  newTileMapLayer,
-  newTileSet,
-} from "./map-slice";
-
-export type MapDimensions = {
-  mapWidth: number;
-  mapHeight: number;
-};
-
-export type TileDimensions = {
-  tileWidth: number;
-  tileHeight: number;
-};
-
-export type EditorDimensions = MapDimensions & TileDimensions;
-
-export type FileWithData = {
-  file: File;
-  data: string;
-};
-
-export type NewTileSetData = {
-  file: FileWithData;
-  tileWidth: number;
-  tileHeight: number;
-  imageWidth: number;
-  imageHeight: number;
-};
-
-export type TileSetWithHash = TileSet & { hash: string };
-export interface EditorSlice {
-  scale: number;
-  currentLayerId: number;
-  tilesetImages: FileWithData[];
-  computed: {
-    tileSets: TileSetWithHash[];
-  };
-  setScale: (scale: number) => void;
-  setMapWidth: (mapWidth: number) => void;
-  setMapHeight: (mapHeight: number) => void;
-  setTileWidth: (tileWidth: number) => void;
-  setTileHeight: (tileHeight: number) => void;
-  addLayer: (layer?: Partial<TileMapLayer>) => void;
-  addTileSet: (newTileSetData: NewTileSetData) => void;
-  updateTileSet: (hash: string, newTileSetData: Partial<TileSet>) => void;
-  deleteTileSet: (tileSet: TileSet) => void;
-}
+} from "../types";
+import { newTileMapLayer, newTileSet } from "./map-slice";
 
 export const createEditorSlice: StateCreator<
   StoreState,

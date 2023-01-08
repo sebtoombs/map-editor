@@ -1,64 +1,24 @@
-import {
-  AspectRatio,
-  Box,
-  Button,
-  ButtonGroup,
-  Flex,
-  FormControl,
-  FormLabel,
-  Grid,
-  IconButton,
-  Input,
-  VStack,
-} from "@chakra-ui/react";
+import { Box } from "@chakra-ui/react";
 import Konva from "konva";
-import { StageConfig } from "konva/lib/Stage";
-import { Vector2d } from "konva/lib/types";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AiOutlineZoomIn, AiOutlineZoomOut } from "react-icons/ai";
-import { EditorDimensions, TileDimensions } from "../store/editor-slice";
-import { initialScale, useStore } from "../store/store";
-
-const initialMapWidth = 30;
-const initialMapHeight = 30;
-const initialTileWidth = 32;
-const initialTileHeight = 32;
-
-type Editor = {
-  stage: Konva.Stage;
-  gridLayer: Konva.Layer;
-  indicatorLayer: Konva.Layer;
-  hoverIndicator?: Konva.Rect;
-};
-
-const calculateStageSize = ({
-  mapWidth,
-  mapHeight,
-  tileWidth,
-  tileHeight,
-}: EditorDimensions) => {
-  return {
-    width: mapWidth * tileWidth + 1,
-    height: mapHeight * tileHeight + 1,
-  };
-};
-
-const setStageSize = (
-  editor: Editor,
-  { mapWidth, mapHeight, tileWidth, tileHeight }: EditorDimensions
-) => {
-  const { width, height } = editor.stage.size();
-  const { width: newWidth, height: newHeight } = calculateStageSize({
-    mapWidth,
-    mapHeight,
-    tileWidth,
-    tileHeight,
-  });
-  if (width !== newWidth || height !== newHeight) {
-    editor.stage.width(newWidth);
-    editor.stage.height(newHeight);
-  }
-};
+import { KonvaEventListener } from "konva/lib/Node";
+import { Stage, StageConfig } from "konva/lib/Stage";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  initialMapHeight,
+  initialMapWidth,
+  initialScale,
+  initialTileHeight,
+  initialTileWidth,
+} from "../constants";
+import { useStore } from "../store/store";
+import { Editor, TileDimensions } from "../types";
+import {
+  calculateStageSize,
+  getScaledPosition,
+  mapCoordsToIndex,
+  setStageSize,
+  snapToGrid,
+} from "../utils/canvas";
 
 const drawGrid = (
   editor: Editor,
@@ -101,56 +61,25 @@ const drawGrid = (
   }
 };
 
-const snapToGrid = (
-  { x, y }: { x: number; y: number },
-  { tileWidth, tileHeight }: TileDimensions
-) => {
-  return {
-    x: Math.floor(x / tileWidth) * tileWidth,
-    y: Math.floor(y / tileHeight) * tileHeight,
-  };
-};
-
-const mapCoordsToIndex = (
-  { x, y }: { x: number; y: number },
-  { tileWidth, tileHeight, mapWidth, mapHeight }: EditorDimensions
-) => {
-  const { x: snappedX, y: snappedY } = snapToGrid(
-    { x, y },
-    { tileWidth, tileHeight }
-  );
-  const index = (snappedY / tileHeight) * mapWidth + snappedX / tileWidth;
-  return index;
-};
-
-const getScaledPosition = (
-  editor: Editor,
-  inputPosition?: Vector2d
-): Vector2d | null => {
-  let position: Vector2d | null = inputPosition || null;
-  if (!position) position = editor.stage.getPointerPosition();
-  if (!position) return null;
-
-  const scaledPosition = {
-    x: position.x / editor.stage.scaleX(),
-    y: position.y / editor.stage.scaleY(),
-  };
-
-  return scaledPosition;
-};
-
 const drawHoverIndicator = (
   editor: Editor,
-  { x, y, tileWidth, tileHeight }: { x: number; y: number } & TileDimensions
+  { tileWidth, tileHeight }: TileDimensions
 ) => {
-  const scaledPosition = getScaledPosition(editor, { x, y });
+  const pointerPosition = editor.stage.getPointerPosition();
+
+  if (!pointerPosition) return;
+
+  const scaledPosition = getScaledPosition(editor, pointerPosition);
   if (!scaledPosition) return;
 
-  const position = snapToGrid(scaledPosition, { tileWidth, tileHeight });
+  const snappedPosition = snapToGrid(scaledPosition, {
+    gridX: tileWidth,
+    gridY: tileHeight,
+  });
 
   if (!editor.hoverIndicator) {
     editor.hoverIndicator = new Konva.Rect({
-      ...position,
+      ...snappedPosition,
       width: tileWidth,
       height: tileHeight,
       fill: "#48BB78",
@@ -160,8 +89,8 @@ const drawHoverIndicator = (
     });
     editor.indicatorLayer.add(editor.hoverIndicator);
   }
-  // add the shape to the layer
-  editor.hoverIndicator.setPosition(position);
+
+  editor.hoverIndicator.setPosition(snappedPosition);
 };
 
 const removeHoverIndicator = (editor: Editor) => {
@@ -208,7 +137,7 @@ const createEditor = ({ container }: Partial<StageConfig>) => {
   };
 };
 
-export default function Editor() {
+export function EditorComponent() {
   const editorRef = useRef<HTMLDivElement>(null);
 
   const { mapWidth, mapHeight, tileWidth, tileHeight, scale } = useStore(
@@ -228,37 +157,42 @@ export default function Editor() {
 
     const position = getScaledPosition(editor);
     if (!position) return;
-    const layerIndex = mapCoordsToIndex(position, {
-      mapWidth,
-      mapHeight,
-      tileWidth,
-      tileHeight,
+
+    const gridIndex = mapCoordsToIndex(position, {
+      gridColumns: mapWidth,
+      gridX: tileWidth,
+      gridY: tileHeight,
     });
-  }, [editor, mapWidth, mapHeight, tileWidth, tileHeight]);
+    console.log(gridIndex);
+  }, [editor, mapWidth, tileWidth, tileHeight]);
 
   // this might need to be throttled / some optimisation
   const onStageHover = useCallback(() => {
-    const { x, y } = editor?.stage.getPointerPosition()!;
-    drawHoverIndicator(editor!, { x, y, tileWidth, tileHeight });
+    // const { x, y } = editor?.stage?.getPointerPosition()! || {};
+    drawHoverIndicator(editor!, { tileWidth, tileHeight });
   }, [editor, tileWidth, tileHeight]);
 
-  const onStageMouseOut = useCallback(() => {
-    removeHoverIndicator(editor!);
-  }, [editor]);
+  const onStageMouseOut: KonvaEventListener<Stage, MouseEvent> = useCallback(
+    (event) => {
+      if ((event.target as unknown as Konva.Stage) === editor?.stage)
+        removeHoverIndicator(editor!);
+    },
+    [editor]
+  );
 
   // Create and dispose of the editor
   useEffect(() => {
-    if (!editorRef.current) {
-      return;
-    }
-    const editor = createEditor({
-      container: editorRef.current!,
-    });
+    let newEditor: Editor;
+    if (editorRef.current) {
+      newEditor = createEditor({
+        container: editorRef.current!,
+      });
 
-    setEditor(editor);
+      setEditor(newEditor);
+    }
 
     return () => {
-      editor.stage.destroy();
+      newEditor?.stage.destroy();
       setEditor(undefined);
     };
   }, []);
@@ -281,7 +215,7 @@ export default function Editor() {
     if (editor) {
       editor.stage.scale({ x: scale, y: scale });
     }
-  }, [scale]);
+  }, [scale, editor]);
 
   // Listen for clicks on the stage
   useEffect(() => {

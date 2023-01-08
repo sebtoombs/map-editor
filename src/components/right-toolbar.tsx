@@ -6,8 +6,8 @@ import {
   AccordionPanel,
   Box,
 } from "@chakra-ui/react";
-import Layers from "./layers";
-import Tilesets from "./tilesets";
+import { Layers } from "./layers";
+import { Tilesets } from "./tilesets";
 
 const ToolbarItems = [
   {
@@ -20,12 +20,12 @@ const ToolbarItems = [
   },
 ];
 
-export default function RightToolbar() {
+export function RightToolbar() {
   return (
     <Box>
       <Accordion defaultIndex={[0, 1]} allowMultiple>
-        {ToolbarItems.map((item, index) => (
-          <AccordionItem borderColor="purple.800" key={index}>
+        {ToolbarItems.map((item) => (
+          <AccordionItem borderColor="purple.800" key={item.title}>
             <h2>
               <AccordionButton
                 bg="gray.900"

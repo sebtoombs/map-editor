@@ -8,17 +8,16 @@ import {
   MenuButton,
   MenuItem,
   MenuList,
-  Text,
   Tooltip,
-  VStack,
 } from "@chakra-ui/react";
-import { PropsWithChildren, useCallback, useRef } from "react";
+import { useCallback } from "react";
 import { AiOutlinePlus } from "react-icons/ai";
-import { useStore } from "../store/store";
-import { DndProvider, useDrag, useDrop, XYCoord } from "react-dnd";
+import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
-import { TileMapLayer } from "../store/map-slice";
 import { IoChevronDown } from "react-icons/io5";
+import { useStore } from "../store/store";
+import { TileMapLayer } from "../types";
+import { LayerList } from "./layer-list";
 
 // SO MUCH TODO HERE!!
 // - Drag and drop layers
@@ -29,7 +28,7 @@ import { IoChevronDown } from "react-icons/io5";
 // - Layer properties
 // - Layer delete
 
-export default function Layers() {
+export function Layers() {
   const [layers, addLayer] = useStore((state) => [
     state.map.layers,
     state.addLayer,
@@ -50,7 +49,7 @@ export default function Layers() {
       <Flex justifyContent="flex-end">
         <Menu isLazy>
           <Tooltip label="Coming soon">
-            <ButtonGroup size="xs" isAttached isDisabled={true}>
+            <ButtonGroup size="xs" isAttached isDisabled>
               <Button
                 size="xs"
                 onClick={() => addNewLayer()}
@@ -77,14 +76,14 @@ export default function Layers() {
             </MenuItem>
             <MenuItem
               fontSize="sm"
-              isDisabled={true}
+              isDisabled
               onClick={() => addNewLayer({ type: "imagelayer" })}
             >
               Image layer
             </MenuItem>
             <MenuItem
               fontSize="sm"
-              isDisabled={true}
+              isDisabled
               onClick={() => addNewLayer({ type: "objectlayer" })}
             >
               Object layer
@@ -98,86 +97,6 @@ export default function Layers() {
           </MenuList>
         </Menu>
       </Flex>
-    </Box>
-  );
-}
-
-function LayerList() {
-  const layers = useStore((state) => state.map.layers);
-
-  return (
-    // <DropZone
-    //   onDrop={(item, monitor) =>
-    //     console.log("list drop", item, monitor.didDrop())
-    //   }
-    // >
-    <Box py="1">
-      <VStack spacing="1" alignItems="stretch">
-        {layers.map((layer, index) => (
-          <Layer key={index} layer={layer} />
-        ))}
-      </VStack>
-    </Box>
-    // </DropZone>
-  );
-}
-
-function Layer({ layer }: { layer: TileMapLayer }) {
-  const { id } = layer;
-
-  // const [{ isDragging }, drag] = useDrag({
-  //   type: "layer",
-  //   item: () => ({ id }),
-  //   collect: (monitor) => ({
-  //     isDragging: monitor.isDragging(),
-  //   }),
-  // });
-
-  // const opacity = isDragging ? 0.4 : 1;
-
-  const renderLayer = useCallback(() => {
-    return (
-      // <Box ref={drag} style={{ opacity }}>
-      <Box>
-        <Text as="span" fontSize="sm">
-          {layer.name}
-        </Text>
-      </Box>
-    );
-    // }, [drag, opacity, layer.name]);
-  }, [layer.name]);
-
-  // if (layer.type === "group") {
-  //   return (
-  //     <DropZone
-  //       onDrop={(item, monitor) =>
-  //         console.log("layer drop", item, monitor.didDrop())
-  //       }
-  //     >
-  //       {renderLayer()}
-  //     </DropZone>
-  //   );
-  // }
-
-  return renderLayer();
-}
-
-function DropZone({
-  onDrop,
-  children,
-}: PropsWithChildren<{ onDrop: (item: any, monitor: any) => void }>) {
-  const [{ isOver, isOverCurrent }, drop] = useDrop({
-    accept: "layer",
-    drop: (item, monitor) => onDrop(item, monitor),
-    collect: (monitor) => ({
-      isOver: !!monitor.isOver(),
-      isOverCurrent: monitor.isOver({ shallow: true }),
-    }),
-  });
-
-  return (
-    <Box ref={drop} style={{ background: isOverCurrent ? "red" : "none" }}>
-      {children}
     </Box>
   );
 }
