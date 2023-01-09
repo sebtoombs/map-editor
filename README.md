@@ -15,3 +15,5 @@ Use it: [https://map-editor.sebtoombs.com/](https://map-editor.sebtoombs.com/)
 - [ ] Add fill tool
 - [ ] Save project
 - [ ] Export tilemap
+- [ ] Add multiple layers
+- [ ] Handle map size changes
