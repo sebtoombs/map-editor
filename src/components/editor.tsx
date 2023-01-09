@@ -141,14 +141,19 @@ export function EditorComponent() {
   const editorRef = useRef<HTMLDivElement>(null);
 
   const { mapWidth, mapHeight, tileWidth, tileHeight, scale } = useStore(
-    (state) => ({
-      mapWidth: state.map.width,
-      mapHeight: state.map.height,
-      tileWidth: state.map.tilewidth,
-      tileHeight: state.map.tileheight,
-      scale: state.scale,
-    })
+    useCallback(
+      (state) => ({
+        mapWidth: state.map.width,
+        mapHeight: state.map.height,
+        tileWidth: state.map.tilewidth,
+        tileHeight: state.map.tileheight,
+        scale: state.scale,
+      }),
+      []
+    )
   );
+
+  const paintTiles = useStore(useCallback((state) => state.paintTiles, []));
 
   const [editor, setEditor] = useState<Editor>();
 
@@ -163,8 +168,9 @@ export function EditorComponent() {
       gridX: tileWidth,
       gridY: tileHeight,
     });
-    console.log(gridIndex);
-  }, [editor, mapWidth, tileWidth, tileHeight]);
+
+    paintTiles(gridIndex);
+  }, [editor, mapWidth, tileWidth, tileHeight, paintTiles]);
 
   // this might need to be throttled / some optimisation
   const onStageHover = useCallback(() => {

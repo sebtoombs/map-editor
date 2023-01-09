@@ -6,6 +6,7 @@ import {
   NewTileSetData,
   StoreState,
   TileSet,
+  TileSetWithHash,
 } from "../types";
 import { newTileMapLayer, newTileSet } from "./map-slice";
 
@@ -56,6 +57,30 @@ export const createEditorSlice: StateCreator<
         };
       })
     ),
+
+  paintTiles: (gridIndex) =>
+    set(
+      produce<StoreState>((state) => {
+        const { selectedTiles, currentLayerId } = state;
+        if (!selectedTiles) return;
+
+        const { tileSetHash, tileIndices } = selectedTiles;
+        const tileSet = state.computed.tileSets.find(
+          (ts: TileSetWithHash) => ts.hash === tileSetHash
+        );
+        if (!tileSet) return;
+
+        const layerIndex = state.map.layers.findIndex(
+          (l) => l.id === currentLayerId
+        );
+        if (layerIndex === -1) return;
+
+        tileIndices.forEach((tileIndex) => {
+          const gid = tileSet.firstgid + tileIndex;
+          state.map.layers[layerIndex].data[gridIndex] = gid;
+        });
+      })
+    ),
   setMapWidth: (mapWidth) =>
     set(
       produce((state) => {
@@ -90,6 +115,7 @@ export const createEditorSlice: StateCreator<
   addLayer: (layer = {}) =>
     set(
       produce((state) => {
+        // TODO need to calculate gid
         const nextLayerId = state.map.nextlayerid;
         const newLayer = newTileMapLayer({
           ...layer,
@@ -108,6 +134,14 @@ export const createEditorSlice: StateCreator<
   }: NewTileSetData) =>
     set(
       produce((state) => {
+        const nextGid = state.map.tilesets.reduce(
+          (acc: number, ts: TileSet) => {
+            const tsGid = ts.firstgid + ts.tilecount;
+            return tsGid > acc ? tsGid : acc;
+          },
+          1
+        );
+
         state.map.tilesets.push(
           newTileSet({
             tilewidth: tileWidth,
@@ -116,6 +150,7 @@ export const createEditorSlice: StateCreator<
             imageheight: imageHeight,
             image: file.file.name,
             name: file.file.name,
+            firstgid: nextGid,
           })
         );
 

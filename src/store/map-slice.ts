@@ -38,9 +38,9 @@ export function newTileMapLayer(
     id,
   };
 
-  newInstance.data =
-    newInstance.data ||
-    new Array(newInstance.width * newInstance.height).fill(0);
+  newInstance.data = newInstance.data?.length
+    ? newInstance.data
+    : new Array(newInstance.width * newInstance.height).fill(0);
   return newInstance;
 }
 

@@ -51,6 +51,7 @@ export interface EditorSlice {
   setScale: (scale: number) => void;
   setSelectedTool: (tool: EditorToolTypes) => void;
   setSelectedTiles: (tileSetHash: string, tileIndices: number[]) => void;
+  paintTiles: (gridIndex: number) => void;
   setMapWidth: (mapWidth: number) => void;
   setMapHeight: (mapHeight: number) => void;
   setTileWidth: (tileWidth: number) => void;
