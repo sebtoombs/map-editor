@@ -11,14 +11,97 @@ import {
   initialTileWidth,
 } from "../constants";
 import { useStore } from "../store/store";
-import { Editor, TileDimensions } from "../types";
+import {
+  Editor,
+  FileWithData,
+  TileDimensions,
+  TileMap,
+  TileSet,
+} from "../types";
 import {
   calculateStageSize,
   getScaledPosition,
   mapCoordsToIndex,
+  mapIndexToCoords,
   setStageSize,
   snapToGrid,
 } from "../utils/canvas";
+import { lookupImageByTileSet } from "../utils/tileset";
+
+const getTilesetFromGid = (gid: number, tilesets: TileSet[]) =>
+  tilesets.find(
+    (tileset) =>
+      gid >= tileset.firstgid && gid < tileset.firstgid + tileset.tilecount
+  );
+
+const imageCache = new Map<string, HTMLImageElement>();
+
+const getImage = (src: string): Promise<HTMLImageElement> =>
+  new Promise((resolve, reject) => {
+    if (imageCache.has(src)) {
+      resolve(imageCache.get(src)!);
+    }
+    const image = new Image();
+    image.onload = () => {
+      imageCache.set(src, image);
+      resolve(image);
+    };
+    image.onerror = () => {
+      reject();
+    };
+    image.src = src;
+  });
+
+const drawTiles = (
+  editor: Editor,
+  map: TileMap,
+  tilesetImages: FileWithData[]
+) => {
+  map.layers.forEach((layer) => {
+    layer.data.forEach(async (gid, gridIndex) => {
+      if (gid === 0) return;
+      const tileset = getTilesetFromGid(gid, map.tilesets);
+      if (!tileset) return;
+      const tilesetImage = lookupImageByTileSet(tilesetImages, tileset);
+      if (!tilesetImage) return;
+
+      const { x, y } = mapIndexToCoords(gridIndex, {
+        gridColumns: map.width,
+        gridX: map.tilewidth,
+        gridY: map.tileheight,
+      });
+
+      const tileIndex = gid - tileset.firstgid;
+
+      const tileCoordinates = mapIndexToCoords(tileIndex, {
+        gridColumns: tileset.columns,
+        gridX: tileset.tilewidth,
+        gridY: tileset.tileheight,
+      });
+
+      // TODO tileset spacing, margin
+      const tile = new Konva.Image({
+        x,
+        y,
+        image: await getImage(tilesetImage.data),
+        width: map.tilewidth,
+        height: map.tileheight,
+
+        // offsetX: tilesetOffsetX,
+        // offsetY: tilesetOffsetY,
+        crop: {
+          x: tileCoordinates.x,
+          y: tileCoordinates.y,
+          width: tileset.tilewidth,
+          height: tileset.tileheight,
+        },
+      });
+
+      // add the shape to the layer
+      editor.imageLayer.add(tile);
+    });
+  });
+};
 
 const drawGrid = (
   editor: Editor,
@@ -114,11 +197,13 @@ const createEditor = ({ container }: Partial<StageConfig>) => {
   });
 
   const gridLayer = new Konva.Layer();
+  const imageLayer = new Konva.Layer();
   const indicatorLayer = new Konva.Layer();
 
   const editor = {
     stage,
     gridLayer,
+    imageLayer,
     indicatorLayer,
   };
 
@@ -128,13 +213,10 @@ const createEditor = ({ container }: Partial<StageConfig>) => {
   });
 
   stage.add(gridLayer);
+  stage.add(imageLayer);
   stage.add(indicatorLayer);
 
-  return {
-    stage,
-    gridLayer,
-    indicatorLayer,
-  };
+  return editor;
 };
 
 export function EditorComponent() {
@@ -151,6 +233,11 @@ export function EditorComponent() {
       }),
       []
     )
+  );
+
+  const map = useStore(useCallback((state) => state.map, []));
+  const tilesetImages = useStore(
+    useCallback((state) => state.tilesetImages, [])
   );
 
   const paintTiles = useStore(useCallback((state) => state.paintTiles, []));
@@ -258,6 +345,14 @@ export function EditorComponent() {
       }
     };
   }, [editor, onStageMouseOut]);
+
+  // Draw tiles!
+  // All this work to get here
+  useEffect(() => {
+    if (editor) {
+      drawTiles(editor, map, tilesetImages);
+    }
+  }, [editor, map, tilesetImages]);
 
   return (
     <Box pb="4">

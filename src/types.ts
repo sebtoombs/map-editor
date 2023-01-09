@@ -3,6 +3,7 @@ import type Konva from "konva";
 export type Editor = {
   stage: Konva.Stage;
   gridLayer: Konva.Layer;
+  imageLayer: Konva.Layer;
   indicatorLayer: Konva.Layer;
   hoverIndicator?: Konva.Rect;
 };
