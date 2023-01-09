@@ -57,49 +57,53 @@ const drawTiles = (
   map: TileMap,
   tilesetImages: FileWithData[]
 ) => {
+  editor.imageLayer.removeChildren();
   map.layers.forEach((layer) => {
-    layer.data.forEach(async (gid, gridIndex) => {
-      if (gid === 0) return;
-      const tileset = getTilesetFromGid(gid, map.tilesets);
-      if (!tileset) return;
-      const tilesetImage = lookupImageByTileSet(tilesetImages, tileset);
-      if (!tilesetImage) return;
+    layer.data
+      .map((gid, index) => [gid, index])
+      .filter(([gid]) => gid > 0)
+      .forEach(async ([gid, gridIndex]) => {
+        if (gid === 0) return;
+        const tileset = getTilesetFromGid(gid, map.tilesets);
+        if (!tileset) return;
+        const tilesetImage = lookupImageByTileSet(tilesetImages, tileset);
+        if (!tilesetImage) return;
 
-      const { x, y } = mapIndexToCoords(gridIndex, {
-        gridColumns: map.width,
-        gridX: map.tilewidth,
-        gridY: map.tileheight,
+        const { x, y } = mapIndexToCoords(gridIndex, {
+          gridColumns: map.width,
+          gridX: map.tilewidth,
+          gridY: map.tileheight,
+        });
+
+        const tileIndex = gid - tileset.firstgid;
+
+        const tileCoordinates = mapIndexToCoords(tileIndex, {
+          gridColumns: tileset.columns,
+          gridX: tileset.tilewidth,
+          gridY: tileset.tileheight,
+        });
+
+        // TODO tileset spacing, margin
+        const tile = new Konva.Image({
+          x,
+          y,
+          image: await getImage(tilesetImage.data),
+          width: map.tilewidth,
+          height: map.tileheight,
+
+          // offsetX: tilesetOffsetX,
+          // offsetY: tilesetOffsetY,
+          crop: {
+            x: tileCoordinates.x,
+            y: tileCoordinates.y,
+            width: tileset.tilewidth,
+            height: tileset.tileheight,
+          },
+        });
+
+        // add the shape to the layer
+        editor.imageLayer.add(tile);
       });
-
-      const tileIndex = gid - tileset.firstgid;
-
-      const tileCoordinates = mapIndexToCoords(tileIndex, {
-        gridColumns: tileset.columns,
-        gridX: tileset.tilewidth,
-        gridY: tileset.tileheight,
-      });
-
-      // TODO tileset spacing, margin
-      const tile = new Konva.Image({
-        x,
-        y,
-        image: await getImage(tilesetImage.data),
-        width: map.tilewidth,
-        height: map.tileheight,
-
-        // offsetX: tilesetOffsetX,
-        // offsetY: tilesetOffsetY,
-        crop: {
-          x: tileCoordinates.x,
-          y: tileCoordinates.y,
-          width: tileset.tilewidth,
-          height: tileset.tileheight,
-        },
-      });
-
-      // add the shape to the layer
-      editor.imageLayer.add(tile);
-    });
   });
 };
 
@@ -242,9 +246,12 @@ export function EditorComponent() {
 
   const paintTiles = useStore(useCallback((state) => state.paintTiles, []));
 
+  const selectedTool = useStore((state) => state.selectedTool);
+
   const [editor, setEditor] = useState<Editor>();
 
   const onStageClick = useCallback(() => {
+    if (selectedTool !== "paint") return;
     if (!editor) return;
 
     const position = getScaledPosition(editor);
@@ -257,13 +264,13 @@ export function EditorComponent() {
     });
 
     paintTiles(gridIndex);
-  }, [editor, mapWidth, tileWidth, tileHeight, paintTiles]);
+  }, [editor, mapWidth, tileWidth, tileHeight, paintTiles, selectedTool]);
 
   // this might need to be throttled / some optimisation
-  const onStageHover = useCallback(() => {
-    // const { x, y } = editor?.stage?.getPointerPosition()! || {};
-    drawHoverIndicator(editor!, { tileWidth, tileHeight });
-  }, [editor, tileWidth, tileHeight]);
+  const onStageHover: KonvaEventListener<Stage, MouseEvent> =
+    useCallback(() => {
+      drawHoverIndicator(editor!, { tileWidth, tileHeight });
+    }, [editor, tileWidth, tileHeight]);
 
   const onStageMouseOut: KonvaEventListener<Stage, MouseEvent> = useCallback(
     (event) => {
@@ -345,6 +352,81 @@ export function EditorComponent() {
       }
     };
   }, [editor, onStageMouseOut]);
+
+  const [isDragging, setIsDragging] = useState(false);
+
+  const onStageMouseDown = useCallback(() => {
+    setIsDragging(true);
+  }, []);
+
+  const onStageMouseUp = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  const [tilesToPaint, setTilesToPaint] = useState<Set<number>>(new Set());
+
+  // TODO this works, but it's not very efficient.
+  // Potential optimisations
+  // - only paint tiles that are in the viewport
+  // - only paint tiles that are in the viewport and are not already painted
+  // - dispatch painting to a queue
+  // - throttle painting
+  // - only draw if grid index is different from last draw
+
+  const onStageMouseMove = useCallback(() => {
+    if (isDragging && editor && selectedTool === "paint") {
+      const position = getScaledPosition(editor);
+      if (!position) return;
+
+      const gridIndex = mapCoordsToIndex(position, {
+        gridColumns: mapWidth,
+        gridX: tileWidth,
+        gridY: tileHeight,
+      });
+
+      paintTiles(gridIndex);
+      // tilesToPaint.add(gridIndex);
+    }
+  }, [
+    editor,
+    isDragging,
+    selectedTool,
+    tileWidth,
+    tileHeight,
+    mapWidth,
+    // tilesToPaint,
+    paintTiles,
+    // isDragging,
+    // editor,
+    // mapWidth,
+    // tileWidth,
+    // tileHeight,
+    // paintTiles,
+    // selectedTool,
+  ]);
+
+  useEffect(() => {
+    if (!isDragging && tilesToPaint.size > 0) {
+      Array.from(tilesToPaint).forEach((tile) => paintTiles(tile));
+      setTilesToPaint(new Set());
+    }
+  }, [isDragging, tilesToPaint, paintTiles]);
+
+  // Paint tiles on drag
+  useEffect(() => {
+    if (editor) {
+      editor.stage.on("mousedown", onStageMouseDown);
+      editor.stage.on("mouseup", onStageMouseUp);
+      editor.stage.on("mousemove", onStageMouseMove);
+    }
+    return () => {
+      if (editor) {
+        editor.stage.off("mousedown", onStageMouseDown);
+        editor.stage.off("mouseup", onStageMouseUp);
+        editor.stage.off("mousemove", onStageMouseMove);
+      }
+    };
+  }, [editor, onStageMouseDown, onStageMouseUp, onStageMouseMove]);
 
   // Draw tiles!
   // All this work to get here
