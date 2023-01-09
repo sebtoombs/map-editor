@@ -2,6 +2,7 @@ import { Box } from "@chakra-ui/react";
 import Konva from "konva";
 import { StageConfig } from "konva/lib/Stage";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useStore } from "../store/store";
 import {
   Editor,
   FileWithData,
@@ -11,8 +12,36 @@ import {
 import {
   getScaledPosition,
   mapCoordsToIndex,
+  mapIndexToCoords,
   snapToGrid,
 } from "../utils/canvas";
+
+export const drawSelectedTiles = (
+  canvas: any,
+  selectedTiles: number[],
+  {
+    gridX,
+    gridY,
+    gridColumns,
+  }: { gridX: number; gridY: number; gridColumns: number }
+) => {
+  canvas.selectedTilesLayer.removeChildren();
+
+  selectedTiles.forEach((tileIndex) => {
+    const { x, y } = mapIndexToCoords(tileIndex, { gridColumns, gridX, gridY });
+    const tileRect = new Konva.Rect({
+      x,
+      y,
+      width: gridX,
+      height: gridY,
+      fill: "#63B3ED",
+      opacity: 0.5,
+      stroke: "transparent",
+      strokeWidth: 1,
+    });
+    canvas.selectedTilesLayer.add(tileRect);
+  });
+};
 
 export const drawGrid = (
   editor: any,
@@ -121,17 +150,20 @@ export const createCanvas = ({
 
   const imageLayer = new Konva.Layer();
   const gridLayer = new Konva.Layer();
+  const selectedTilesLayer = new Konva.Layer();
   const indicatorLayer = new Konva.Layer();
 
   const canvas = {
     stage,
     imageLayer,
     gridLayer,
+    selectedTilesLayer,
     indicatorLayer,
   };
 
   stage.add(imageLayer);
   stage.add(gridLayer);
+  stage.add(selectedTilesLayer);
   stage.add(indicatorLayer);
 
   return canvas;
@@ -147,6 +179,26 @@ export function TileSetCanvas({
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const [canvas, setCanvas] = useState<any>();
 
+  const setSelectedTiles = useStore(
+    useCallback((state) => state.setSelectedTiles, [])
+  );
+  const isSelectedTileset = useStore(
+    useCallback(
+      (state) =>
+        state.selectedTiles &&
+        state.selectedTiles?.tileSetHash === tileset.hash,
+      [tileset.hash]
+    )
+  );
+  const selectedTileIndices = useStore(
+    useCallback(
+      (state) =>
+        (isSelectedTileset && state.selectedTiles?.tileIndices) || undefined,
+      [isSelectedTileset]
+    )
+  );
+
+  // Create the canvas
   useEffect(() => {
     let newCanvas: any;
     if (canvasContainerRef.current) {
@@ -163,6 +215,7 @@ export function TileSetCanvas({
     };
   }, []);
 
+  // Set the canvas size
   useEffect(() => {
     if (canvasContainerRef.current && canvas) {
       const { width, height } =
@@ -178,6 +231,7 @@ export function TileSetCanvas({
     }
   }, [canvas, tileset.imagewidth, tileset.imageheight]);
 
+  // Draw the grid
   useEffect(() => {
     if (canvas && canvasContainerRef.current) {
       const { width, height } =
@@ -192,11 +246,34 @@ export function TileSetCanvas({
     }
   }, [canvas, tileset.tilewidth, tileset.tileheight, tileset.imagewidth]);
 
+  // Draw the tileset image
   useEffect(() => {
     if (canvas) {
       drawImage(canvas, tilesetImage.data);
     }
   }, [canvas, tilesetImage.data]);
+
+  useEffect(() => {
+    if (canvas && isSelectedTileset && selectedTileIndices?.length) {
+      const { width, height } =
+        canvasContainerRef.current!.getBoundingClientRect();
+
+      const scale = width / tileset.imagewidth;
+
+      drawSelectedTiles(canvas, selectedTileIndices, {
+        gridX: scale * tileset.tilewidth,
+        gridY: scale * tileset.tileheight,
+        gridColumns: tileset.imagewidth / tileset.tilewidth,
+      });
+    }
+  }, [
+    canvas,
+    isSelectedTileset,
+    selectedTileIndices,
+    tileset.tilewidth,
+    tileset.tileheight,
+    tileset.imagewidth,
+  ]);
 
   // // this might need to be throttled / some optimisation
   const onStageHover = useCallback(() => {
@@ -237,8 +314,16 @@ export function TileSetCanvas({
       gridX: scale * tileset.tilewidth,
       gridY: scale * tileset.tileheight,
     });
-    // TODO
-  }, [canvas, tileset.tilewidth, tileset.tileheight, tileset.imagewidth]);
+
+    setSelectedTiles(tileset.hash, [gridIndex]);
+  }, [
+    canvas,
+    tileset.tilewidth,
+    tileset.tileheight,
+    tileset.imagewidth,
+    tileset.hash,
+    setSelectedTiles,
+  ]);
 
   // // Listen for mouse moves on the stage
   useEffect(() => {

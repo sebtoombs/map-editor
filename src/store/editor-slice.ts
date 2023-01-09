@@ -17,6 +17,8 @@ export const createEditorSlice: StateCreator<
 > = (set, get) => ({
   scale: 1,
   currentLayerId: 1,
+  selectedTool: "cursor",
+  selectedTiles: undefined,
   tilesetImages: [],
   computed: {
     // Tilesets aren't very unique, so we need to add a hash to them to make them unique for rendering etc
@@ -37,6 +39,21 @@ export const createEditorSlice: StateCreator<
         if (scale > 0) {
           state.scale = scale;
         }
+      })
+    ),
+  setSelectedTool: (tool) =>
+    set(
+      produce((state) => {
+        state.selectedTool = tool;
+      })
+    ),
+  setSelectedTiles: (tileSetHash, tileIndices) =>
+    set(
+      produce((state) => {
+        state.selectedTiles = {
+          tileSetHash,
+          tileIndices,
+        };
       })
     ),
   setMapWidth: (mapWidth) =>

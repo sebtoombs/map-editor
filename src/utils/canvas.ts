@@ -24,6 +24,19 @@ export const mapCoordsToIndex = (
   return index;
 };
 
+export const mapIndexToCoords = (
+  index: number,
+  {
+    gridColumns,
+    gridX,
+    gridY,
+  }: { gridColumns: number; gridX: number; gridY: number }
+) => {
+  const x = (index % gridColumns) * gridX;
+  const y = Math.floor(index / gridColumns) * gridY;
+  return { x, y };
+};
+
 export const getScaledPosition = (
   editor: Editor,
   inputPosition?: Vector2d

@@ -33,14 +33,24 @@ export type NewTileSetData = {
 };
 
 export type TileSetWithHash = TileSet & { hash: string };
+
+export type EditorToolTypes = "cursor" | "paint" | "select" | "fill";
+
 export interface EditorSlice {
   scale: number;
   currentLayerId: number;
+  selectedTool: EditorToolTypes;
+  selectedTiles?: {
+    tileSetHash: string;
+    tileIndices: number[];
+  };
   tilesetImages: FileWithData[];
   computed: {
     tileSets: TileSetWithHash[];
   };
   setScale: (scale: number) => void;
+  setSelectedTool: (tool: EditorToolTypes) => void;
+  setSelectedTiles: (tileSetHash: string, tileIndices: number[]) => void;
   setMapWidth: (mapWidth: number) => void;
   setMapHeight: (mapHeight: number) => void;
   setTileWidth: (tileWidth: number) => void;
